@@ -1,0 +1,825 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Bài giảng trực quan, từng bước về điều kiện dừng của AI agent trong demo2_dieu_kien_dung.py">
+  <title>Demo 2 — Điều kiện dừng của AI Agent</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #5f6b7c;
+      --paper: #f5f1e8;
+      --card: #fffdf8;
+      --line: #d9d2c3;
+      --blue: #275dad;
+      --blue-soft: #e8f0ff;
+      --red: #b43c35;
+      --red-soft: #fdebea;
+      --amber: #a65f00;
+      --amber-soft: #fff0d5;
+      --green: #187254;
+      --green-soft: #e4f5ee;
+      --purple: #6f4bb2;
+      --code: #121826;
+      --shadow: 0 16px 40px rgba(40, 34, 24, .10);
+      --radius: 20px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 10% 3%, rgba(39, 93, 173, .10), transparent 25rem),
+        radial-gradient(circle at 92% 18%, rgba(180, 60, 53, .08), transparent 22rem),
+        var(--paper);
+      font: 16px/1.65 ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    h1, h2, h3, p { margin-top: 0; }
+    h1, h2, h3 { line-height: 1.16; letter-spacing: -.025em; }
+    h1 { max-width: 920px; margin-bottom: 20px; font-size: clamp(2.6rem, 7vw, 6rem); }
+    h2 { margin-bottom: 14px; font-size: clamp(1.8rem, 4vw, 3rem); }
+    h3 { font-size: 1.18rem; }
+    a { color: inherit; }
+    code, pre, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    code:not(pre code) { padding: .12rem .38rem; border: 1px solid var(--line); border-radius: 6px; background: #fff; font-size: .9em; overflow-wrap: anywhere; white-space: normal; }
+    button { font: inherit; }
+
+    .container { width: min(1160px, calc(100% - 32px)); margin-inline: auto; }
+    .eyebrow { margin-bottom: 14px; color: var(--blue); font-size: .78rem; font-weight: 850; letter-spacing: .14em; text-transform: uppercase; }
+    .lead { max-width: 800px; color: #354052; font-size: clamp(1.08rem, 2vw, 1.35rem); }
+    .muted { color: var(--muted); }
+    .kicker { font-size: .86rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+
+    .hero { padding: 84px 0 52px; }
+    .hero-grid { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(280px, .55fr); gap: 32px; align-items: end; }
+    .hero-card { padding: 22px; border: 1px solid rgba(39, 93, 173, .22); border-radius: var(--radius); background: rgba(255, 253, 248, .8); box-shadow: var(--shadow); }
+    .hero-card strong { display: block; margin-bottom: 8px; font-size: 1.08rem; }
+    .hero-card ul { margin: 0; padding-left: 20px; }
+    .question { margin: 28px 0 0; padding: 20px 24px; border-left: 6px solid var(--blue); border-radius: 0 14px 14px 0; background: var(--blue-soft); font-size: 1.08rem; font-weight: 700; }
+
+    .toc { position: sticky; top: 0; z-index: 20; border-block: 1px solid var(--line); background: rgba(245, 241, 232, .94); backdrop-filter: blur(12px); }
+    .toc .container { display: flex; gap: 6px; overflow-x: auto; padding-block: 10px; scrollbar-width: thin; }
+    .toc a { flex: 0 0 auto; padding: 7px 11px; border-radius: 999px; color: #4a5565; font-size: .83rem; font-weight: 750; text-decoration: none; }
+    .toc a:hover, .toc a:focus-visible { color: var(--blue); background: var(--blue-soft); outline: none; }
+
+    section { padding: 72px 0; scroll-margin-top: 64px; }
+    .section-head { display: grid; grid-template-columns: 100px minmax(0, 760px); gap: 18px; margin-bottom: 34px; }
+    .section-no { color: var(--blue); font: 800 3rem/1 ui-monospace, monospace; opacity: .28; }
+
+    .card { min-width: 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); box-shadow: 0 8px 26px rgba(42, 35, 24, .06); }
+    .pad { padding: 26px; }
+    .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+    .callout { padding: 18px 20px; border-radius: 14px; }
+    .callout strong { display: block; margin-bottom: 4px; }
+    .callout.danger { color: #71231f; background: var(--red-soft); }
+    .callout.info { color: #1e477f; background: var(--blue-soft); }
+    .callout.success { color: #12563f; background: var(--green-soft); }
+    .callout.warn { color: #714400; background: var(--amber-soft); }
+
+    .diagram-shell { overflow: hidden; margin: 0; padding: 0; }
+    .diagram-topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 20px; border-bottom: 1px solid var(--line); background: #f0ece3; }
+    .diagram-title { color: #39465a; font-size: .78rem; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
+    .diagram-key { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: .82rem; }
+    .diagram-key::before { content: ""; width: 26px; border-top: 3px solid var(--red); }
+    .diagram-scroll { overflow-x: auto; overscroll-behavior-inline: contain; scrollbar-color: #aeb8c8 transparent; scrollbar-width: thin; }
+    .diagram-svg { display: block; width: 100%; min-width: 900px; height: auto; background: linear-gradient(180deg, #fffdf8 0%, #fbf8f1 100%); }
+    .diagram-svg text { font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .diagram-svg .svg-kicker { font-size: 12px; font-weight: 850; letter-spacing: 1.4px; }
+    .diagram-svg .svg-title { fill: var(--ink); font-size: 22px; font-weight: 850; }
+    .diagram-svg .svg-copy { fill: #536074; font-size: 15px; }
+    .diagram-svg .svg-code { fill: #344155; font: 600 14px ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .diagram-svg .svg-branch { font-size: 12px; font-weight: 900; letter-spacing: .8px; }
+    .diagram-mobile-hint { display: none; margin: 0; padding: 9px 16px; border-top: 1px solid var(--line); color: var(--muted); background: #f7f3eb; font-size: .8rem; }
+
+    .root-cause { display: grid; grid-template-columns: 1fr 74px 1fr 74px 1fr; align-items: center; }
+    .cause { position: relative; min-height: 156px; padding: 30px 22px 22px; border-top: 5px solid var(--blue); border-radius: 16px; text-align: center; }
+    .cause.observation { border-top-color: var(--amber); }
+    .cause.loop { border-top-color: var(--red); }
+    .cause::before { content: attr(data-step); position: absolute; top: 12px; left: 14px; color: #7a8798; font: 800 .72rem/1 ui-monospace, monospace; letter-spacing: .08em; }
+    .cause small { display: block; margin-top: 8px; color: var(--muted); }
+    .cause-link { display: grid; justify-items: center; gap: 2px; color: #7b8798; }
+    .cause-link span { font-size: .68rem; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
+    .flow-arrow { display: block; width: 58px; height: 28px; color: currentColor; }
+
+    pre { max-width: 100%; margin: 0; overflow: auto; border-radius: 14px; background: var(--code); color: #e8edf7; font-size: .87rem; line-height: 1.68; tab-size: 4; }
+    pre code { display: block; min-width: max-content; padding: 20px; }
+    .kw { color: #c69cff; }
+    .fn { color: #79c7ff; }
+    .str { color: #a8df8e; }
+    .num { color: #ffca7a; }
+    .cm { color: #8290a7; }
+    .ln { display: inline-block; width: 2.5em; margin-right: 12px; color: #59667c; text-align: right; user-select: none; }
+
+    .steps { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
+    .step { min-width: 0; display: grid; grid-template-columns: 58px minmax(0, 1fr); gap: 18px; padding: 24px; }
+    .step-num { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 14px; color: #fff; background: var(--blue); font-weight: 900; }
+    .step h3 { margin: 3px 0 8px; }
+    .step p:last-child { margin-bottom: 0; }
+    .why { margin-top: 14px; padding: 14px 16px; border-left: 3px solid var(--amber); background: var(--amber-soft); }
+
+    .timeline { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; padding: 30px 26px; background: linear-gradient(180deg, #fffdf8, #faf6ee); }
+    .turn { position: relative; z-index: 2; padding: 0 15px; text-align: center; }
+    .turn::after { content: ""; position: absolute; z-index: 1; top: 23px; left: 50%; width: 100%; height: 3px; background: linear-gradient(90deg, var(--blue), #a8b5c8); }
+    .turn:nth-child(3)::after { background: linear-gradient(90deg, var(--blue), var(--red)); }
+    .turn:last-child::after { display: none; }
+    .dot { position: relative; z-index: 3; display: grid; place-items: center; width: 48px; height: 48px; margin: 0 auto 15px; border: 4px solid var(--card); border-radius: 50%; color: #fff; background: var(--blue); box-shadow: 0 0 0 2px var(--blue), 0 5px 14px rgba(39, 93, 173, .22); font-weight: 900; }
+    .turn.bad { z-index: 1; margin: -12px 0; padding-block: 12px; border: 1px solid #ecc0bd; border-radius: 14px; background: var(--red-soft); }
+    .turn.bad .dot { background: var(--red); box-shadow: 0 0 0 2px var(--red), 0 5px 14px rgba(180, 60, 53, .22); }
+    .turn code { display: block; margin-top: 7px; overflow-wrap: anywhere; }
+
+    .mode-picker { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+    .mode-button { padding: 10px 15px; border: 1px solid var(--line); border-radius: 999px; color: var(--ink); background: #fff; cursor: pointer; font-weight: 800; }
+    .mode-button:hover, .mode-button:focus-visible { border-color: var(--blue); outline: none; }
+    .mode-button[aria-selected="true"] { border-color: var(--blue); color: #fff; background: var(--blue); }
+    .mode-panel { display: none; grid-template-columns: minmax(0, .75fr) minmax(0, 1.25fr); gap: 20px; }
+    .mode-panel.active { display: grid; }
+    .mode-result { padding: 24px; }
+    .meter { height: 12px; margin: 18px 0 8px; overflow: hidden; border-radius: 999px; background: #e5e1d8; }
+    .meter span { display: block; height: 100%; border-radius: inherit; }
+    .metric { display: grid; grid-template-columns: auto 1fr; gap: 8px 14px; margin: 18px 0 0; }
+    .metric dt { color: var(--muted); }
+    .metric dd { margin: 0; font-weight: 800; }
+
+    .decision-svg { min-width: 760px; }
+
+    .compare { width: 100%; border-collapse: collapse; overflow: hidden; }
+    .compare th, .compare td { padding: 15px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    .compare thead { background: #ebe6da; }
+    .compare th { font-size: .86rem; letter-spacing: .04em; text-transform: uppercase; }
+    .compare tbody tr:last-child td { border-bottom: 0; }
+    .good { color: var(--green); font-weight: 850; }
+    .bad-text { color: var(--red); font-weight: 850; }
+    .mid { color: var(--amber); font-weight: 850; }
+
+    .handoff { display: grid; gap: 2px; overflow: hidden; border: 1px solid #95c7b3; border-radius: 16px; background: #95c7b3; }
+    .handoff-row { display: grid; grid-template-columns: 190px 1fr; gap: 18px; padding: 16px 18px; background: var(--green-soft); }
+    .handoff-row strong { color: var(--green); }
+
+    .checklist { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+    .checklist li { position: relative; padding-left: 31px; }
+    .checklist li::before { content: "✓"; position: absolute; left: 0; top: .05em; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; color: #fff; background: var(--green); font-size: .78rem; font-weight: 900; }
+
+    .exercise { border-top: 5px solid var(--purple); }
+    footer { padding: 32px 0 54px; border-top: 1px solid var(--line); color: var(--muted); }
+
+    @media (max-width: 900px) {
+      .hero-grid, .grid-3, .mode-panel.active { grid-template-columns: minmax(0, 1fr); }
+      .diagram-svg { min-width: 860px; }
+      .diagram-mobile-hint { display: block; }
+      .root-cause { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+      .flow-arrow { transform: rotate(90deg); }
+      .timeline { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+      .turn { min-width: 0; display: grid; grid-template-columns: 54px minmax(0, 1fr); text-align: left; }
+      .turn::after { top: 35px; left: 35px; width: 3px; height: calc(100% + 18px); background: linear-gradient(180deg, var(--blue), #a8b5c8); }
+      .dot { margin: 0; }
+    }
+
+    @media (max-width: 680px) {
+      .hero { padding-top: 48px; }
+      .hero-grid, .grid-2 { grid-template-columns: minmax(0, 1fr); }
+      .section-head { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+      .section-no { font-size: 2rem; }
+      .step { grid-template-columns: minmax(0, 1fr); }
+      .handoff-row { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+      .compare { font-size: .88rem; }
+      .compare th, .compare td { padding: 10px; }
+    }
+
+    @media print {
+      body { background: #fff; font-size: 11pt; }
+      .toc, .mode-picker { display: none; }
+      .hero, section { padding: 24px 0; }
+      .card { box-shadow: none; break-inside: avoid; }
+      .mode-panel { display: grid !important; margin-bottom: 16px; }
+      pre { white-space: pre-wrap; }
+    }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <div class="container hero-grid">
+      <div>
+        <p class="eyebrow">SE373 · Demo 2 · Slide 34–41</p>
+        <h1>Khi nào AI agent phải dừng?</h1>
+        <p class="lead">Đọc từng bước file <code>demo2_dieu_kien_dung.py</code>: cùng model, câu hỏi và tool; chỉ thay <strong>điều kiện dừng</strong>, kết quả chuyển từ lặp tốn tiền sang dừng đúng chỗ và bàn giao đủ thông tin.</p>
+        <blockquote class="question">“Ngày mai giao hàng ở Vũng Tàu có mưa không? Nếu mưa thì dời sang ngày kia.”</blockquote>
+      </div>
+      <aside class="hero-card" aria-label="Mục tiêu học tập">
+        <strong>Sau bài này, bạn giải thích được:</strong>
+        <ul>
+          <li>Vì sao agent rơi vào vòng lặp.</li>
+          <li>Ba cơ chế dừng khác nhau ở đâu.</li>
+          <li>Middleware bắt vòng lặp tại V4 thế nào.</li>
+          <li>Vì sao dừng phải đi kèm bàn giao.</li>
+        </ul>
+      </aside>
+    </div>
+  </header>
+
+  <nav class="toc" aria-label="Mục lục bài học">
+    <div class="container">
+      <a href="#buc-tranh">Bức tranh lớn</a>
+      <a href="#nguyen-nhan">Nguyên nhân</a>
+      <a href="#doc-code">Đọc code</a>
+      <a href="#ba-che-do">Ba chế độ</a>
+      <a href="#loop-detector">LoopDetector</a>
+      <a href="#ban-giao">Bàn giao</a>
+      <a href="#tong-ket">Tổng kết</a>
+    </div>
+  </nav>
+
+  <main>
+    <section id="buc-tranh">
+      <div class="container">
+        <div class="section-head">
+          <div class="section-no">01</div>
+          <div>
+            <p class="eyebrow">Mental model</p>
+            <h2>Một vòng chạy của agent</h2>
+            <p class="lead">Agent không phải một lần gọi model. Nó là vòng lặp <strong>model → tool → observation → model</strong>. Muốn hệ thống an toàn, vòng lặp phải có đường thoát rõ ràng.</p>
+          </div>
+        </div>
+
+        <figure class="diagram-shell card">
+          <figcaption class="diagram-topbar">
+            <span class="diagram-title">Luồng thực thi bên trong create_agent()</span>
+            <span class="diagram-key">Đường đỏ = dừng bất thường</span>
+          </figcaption>
+          <div class="diagram-scroll">
+            <svg class="diagram-svg" viewBox="0 0 1200 490" role="img" aria-labelledby="agent-flow-title agent-flow-desc">
+              <title id="agent-flow-title">Vòng lặp thực thi của LangGraph agent</title>
+              <desc id="agent-flow-desc">Người dùng gửi câu hỏi cho model. Sau mỗi quyết định của model, router và middleware chọn gọi tool, trả lời bình thường, hoặc dừng bất thường và bàn giao.</desc>
+              <defs>
+                <marker id="agent-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#66758a"/>
+                </marker>
+                <marker id="agent-arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#275dad"/>
+                </marker>
+                <marker id="agent-arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#187254"/>
+                </marker>
+                <marker id="agent-arrow-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#b43c35"/>
+                </marker>
+                <filter id="agent-shadow" x="-20%" y="-20%" width="140%" height="150%">
+                  <feDropShadow dx="0" dy="7" stdDeviation="7" flood-color="#172033" flood-opacity=".10"/>
+                </filter>
+              </defs>
+
+              <!-- Các cạnh được vẽ trước để luôn nằm dưới node. -->
+              <path d="M260 236 H338" fill="none" stroke="#66758a" stroke-width="3" marker-end="url(#agent-arrow)"/>
+              <path d="M560 236 H593" fill="none" stroke="#66758a" stroke-width="3" marker-end="url(#agent-arrow)"/>
+              <path d="M785 236 H912" fill="none" stroke="#275dad" stroke-width="4" marker-end="url(#agent-arrow-blue)"/>
+              <path d="M1028 292 V338 Q1028 362 1004 362 H474 Q450 362 450 338 V294" fill="none" stroke="#66758a" stroke-width="3" marker-end="url(#agent-arrow)"/>
+              <path d="M690 145 V86 H870" fill="none" stroke="#187254" stroke-width="3" marker-end="url(#agent-arrow-green)"/>
+              <path d="M690 327 V418 H850" fill="none" stroke="#fffdf8" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M690 327 V418 H850" fill="none" stroke="#b43c35" stroke-width="4" marker-end="url(#agent-arrow-red)"/>
+
+              <rect x="50" y="180" width="210" height="112" rx="22" fill="#e8f0ff" stroke="#8eb0e3" stroke-width="2" filter="url(#agent-shadow)"/>
+              <circle cx="82" cy="212" r="16" fill="#275dad"/>
+              <text x="82" y="217" text-anchor="middle" fill="#fff" font-size="13" font-weight="900">1</text>
+              <text x="105" y="217" class="svg-kicker" fill="#275dad">HUMAN</text>
+              <text x="82" y="254" class="svg-title">Đặt câu hỏi</text>
+              <text x="82" y="277" class="svg-copy">Tạo HumanMessage</text>
+
+              <rect x="340" y="180" width="220" height="112" rx="22" fill="#f1ebff" stroke="#b9a1e5" stroke-width="2" filter="url(#agent-shadow)"/>
+              <circle cx="372" cy="212" r="16" fill="#6f4bb2"/>
+              <text x="372" y="217" text-anchor="middle" fill="#fff" font-size="13" font-weight="900">2</text>
+              <text x="395" y="217" class="svg-kicker" fill="#6f4bb2">MODEL</text>
+              <text x="372" y="254" class="svg-title">Đề xuất bước kế</text>
+              <text x="372" y="277" class="svg-code">AIMessage(...)</text>
+
+              <polygon points="690,145 785,236 690,327 595,236" fill="#eaf2ff" stroke="#275dad" stroke-width="3" filter="url(#agent-shadow)"/>
+              <rect x="625" y="158" width="130" height="26" rx="13" fill="#275dad"/>
+              <text x="690" y="176" text-anchor="middle" fill="#fff" class="svg-kicker">AFTER_MODEL</text>
+              <text x="690" y="224" text-anchor="middle" class="svg-title" style="font-size:18px">Router +</text>
+              <text x="690" y="248" text-anchor="middle" class="svg-title" style="font-size:18px">middleware</text>
+              <text x="690" y="273" text-anchor="middle" class="svg-copy" style="font-size:13px">chọn đường tiếp theo</text>
+
+              <rect x="910" y="180" width="235" height="112" rx="22" fill="#fff0d5" stroke="#dfad5c" stroke-width="2" filter="url(#agent-shadow)"/>
+              <circle cx="942" cy="212" r="16" fill="#a65f00"/>
+              <text x="942" y="217" text-anchor="middle" fill="#fff" font-size="13" font-weight="900">3</text>
+              <text x="965" y="217" class="svg-kicker" fill="#8b5100">TOOL</text>
+              <text x="942" y="254" class="svg-title">Thực thi hành động</text>
+              <text x="942" y="277" class="svg-code">weather_forecast(...)</text>
+
+              <rect x="870" y="40" width="275" height="92" rx="20" fill="#e4f5ee" stroke="#79bca3" stroke-width="2" filter="url(#agent-shadow)"/>
+              <text x="900" y="73" class="svg-kicker" fill="#187254">KẾT THÚC BÌNH THƯỜNG</text>
+              <text x="900" y="102" class="svg-title" style="font-size:19px">Trả lời cuối → END</text>
+
+              <rect x="850" y="370" width="295" height="96" rx="20" fill="#fdebea" stroke="#d98f8a" stroke-width="2" filter="url(#agent-shadow)"/>
+              <text x="880" y="404" class="svg-kicker" fill="#b43c35">DỪNG BẤT THƯỜNG</text>
+              <text x="880" y="433" class="svg-title" style="font-size:19px">Báo lý do + bàn giao → END</text>
+              <text x="880" y="454" class="svg-copy" style="font-size:13px">LoopDetector phát hiện lặp</text>
+
+              <rect x="814" y="219" width="90" height="25" rx="12" fill="#fff" stroke="#b8c6d8"/>
+              <text x="859" y="236" text-anchor="middle" class="svg-branch" fill="#275dad">GỌI TOOL</text>
+              <rect x="718" y="68" width="128" height="25" rx="12" fill="#fff" stroke="#a8d0c0"/>
+              <text x="782" y="85" text-anchor="middle" class="svg-branch" fill="#187254">KHÔNG GỌI TOOL</text>
+              <rect x="704" y="399" width="122" height="25" rx="12" fill="#fff" stroke="#e1aaa6"/>
+              <text x="765" y="416" text-anchor="middle" class="svg-branch" fill="#b43c35">CÓ CẢNH BÁO</text>
+              <rect x="760" y="348" width="230" height="27" rx="13" fill="#fffdf8" stroke="#cbd3dd"/>
+              <text x="875" y="367" text-anchor="middle" class="svg-code" style="font-size:13px">ToolMessage / observation</text>
+            </svg>
+          </div>
+          <p class="diagram-mobile-hint">Vuốt ngang để xem trọn sơ đồ →</p>
+        </figure>
+
+        <div class="grid-3" style="margin-top:20px">
+          <div class="callout info"><strong>Dừng bình thường</strong>Model không gọi tool nữa và tạo câu trả lời cuối.</div>
+          <div class="callout warn"><strong>Dừng theo ngân sách</strong>Số lần gọi model đã chạm trần định trước.</div>
+          <div class="callout danger"><strong>Dừng bất thường</strong>Phát hiện lặp/bế tắc; cần báo lý do và bàn giao.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="nguyen-nhan">
+      <div class="container">
+        <div class="section-head">
+          <div class="section-no">02</div>
+          <div>
+            <p class="eyebrow">Root cause</p>
+            <h2>Vì sao ví dụ này chắc chắn lặp?</h2>
+            <p class="lead">Không phải vì LangGraph “bị lỗi”. Dữ liệu thiếu, observation nghèo thông tin và model giả luôn chọn gọi lại tool tạo thành chuỗi nguyên nhân hoàn chỉnh.</p>
+          </div>
+        </div>
+
+        <div class="root-cause">
+          <div class="cause card data" data-step="01 · DỮ LIỆU">
+            <strong>Vũng Tàu không có dữ liệu</strong>
+            <small><code>THOI_TIET</code> không có mục Vũng Tàu.</small>
+          </div>
+          <div class="cause-link" aria-hidden="true">
+            <span>dẫn đến</span>
+            <svg class="flow-arrow" viewBox="0 0 58 28">
+              <path d="M2 14 H49" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+              <path d="m42 6 9 8-9 8" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="cause card observation" data-step="02 · PHẢN HỒI">
+            <strong>Tool chỉ báo “not found”</strong>
+            <small>Không có mã lỗi, gợi ý hay danh sách tên hợp lệ.</small>
+          </div>
+          <div class="cause-link" aria-hidden="true">
+            <span>vì vậy</span>
+            <svg class="flow-arrow" viewBox="0 0 58 28">
+              <path d="M2 14 H49" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+              <path d="m42 6 9 8-9 8" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="cause card loop" data-step="03 · HÀNH VI">
+            <strong>Model đổi cách viết rồi thử lại</strong>
+            <small>Không có hướng mới, model chỉ còn cách đổi tên và gọi lại.</small>
+          </div>
+        </div>
+
+        <div class="grid-2" style="margin-top:24px">
+          <pre aria-label="Observation tệ"><code><span class="cm"># demo2_dieu_kien_dung.py:26–27</span>
+os.environ.setdefault(<span class="str">"SE373_LOI_TE"</span>, <span class="str">"1"</span>)
+
+<span class="cm"># tools_dulich.py:77–79</span>
+<span class="kw">if</span> _loi_te():
+    <span class="kw">return</span> {<span class="str">"error"</span>: <span class="str">"not found"</span>}</code></pre>
+          <div class="card pad">
+            <p class="kicker">Điểm cần nhớ</p>
+            <h3>Observation là giao diện điều khiển của agent</h3>
+            <p>Thông báo lỗi tốt phải giúp model quyết định hành động kế tiếp. Chuỗi <code>{"error":"not found"}</code> chỉ mô tả thất bại, không đưa ra lối thoát.</p>
+            <div class="callout success"><strong>Observation tốt hơn trong chính bộ tool</strong><code>town_not_found</code> + gợi ý gọi <code>search_travel_info</code> + ví dụ tên hợp lệ.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="doc-code">
+      <div class="container">
+        <div class="section-head">
+          <div class="section-no">03</div>
+          <div>
+            <p class="eyebrow">Walkthrough</p>
+            <h2>Đọc file theo đúng thứ tự thực thi</h2>
+            <p class="lead">Không đọc từ trên xuống một cách máy móc. Theo luồng chạy từ <code>main()</code>, qua <code>chay()</code>, tới agent và middleware.</p>
+          </div>
+        </div>
+
+        <div class="steps">
+          <article class="step card">
+            <div class="step-num">1</div>
+            <div>
+              <h3><code>main()</code> nhận chế độ từ dòng lệnh · dòng 151–155</h3>
+              <p>Tham số <code>--che-do</code> chỉ nhận một trong ba giá trị. Giá trị được chuyển thẳng vào <code>chay(...)</code>.</p>
+              <pre><code><span class="ln">153</span>p.add_argument(<span class="str">"--che-do"</span>, default=<span class="str">"khong-gioi-han"</span>,
+<span class="ln">154</span>    choices=[<span class="str">"khong-gioi-han"</span>, <span class="str">"ngan-sach"</span>, <span class="str">"phat-hien-lap"</span>])
+<span class="ln">155</span>chay(p.parse_args().che_do)</code></pre>
+            </div>
+          </article>
+
+          <article class="step card">
+            <div class="step-num">2</div>
+            <div>
+              <h3>Tạo cùng model và cùng tool · dòng 91–94</h3>
+              <p><code>ModelGia(kich_ban="lap")</code> luôn sinh lời gọi <code>weather_forecast</code>. <code>tools_langchain()</code> bọc các hàm Python thành tool cho agent.</p>
+              <pre><code><span class="ln">91</span><span class="kw">def</span> <span class="fn">chay</span>(che_do: str) -&gt; None:
+<span class="ln">92</span>    model = ModelGia(kich_ban=<span class="str">"lap"</span>)
+<span class="ln">93</span>    tools = tools_langchain()
+<span class="ln">95</span>    middleware, config = [], {}</code></pre>
+              <div class="why"><strong>Thiết kế thí nghiệm:</strong> model, câu hỏi và tool là biến kiểm soát; middleware/config là biến độc lập. Vì vậy khác biệt đầu ra đến từ điều kiện dừng.</div>
+            </div>
+          </article>
+
+          <article class="step card">
+            <div class="step-num">3</div>
+            <div>
+              <h3>Chọn “phanh” cho vòng lặp · dòng 96–103</h3>
+              <div class="grid-3">
+                <div class="callout danger"><strong>Không giới hạn riêng</strong><code>recursion_limit=36</code> chỉ là chặn cứng cuối cùng.</div>
+                <div class="callout warn"><strong>Ngân sách</strong><code>run_limit=8</code> giới hạn số lần gọi model.</div>
+                <div class="callout success"><strong>Phát hiện lặp</strong>Middleware tự viết quan sát từng <code>tool_call</code>.</div>
+              </div>
+            </div>
+          </article>
+
+          <article class="step card">
+            <div class="step-num">4</div>
+            <div>
+              <h3>Dựng và chạy agent · dòng 105–112</h3>
+              <p><code>create_agent</code> ghép model, tool và middleware thành graph. <code>invoke</code> khởi động graph bằng một Human message.</p>
+              <pre><code><span class="ln">105</span>agent = create_agent(model=model, tools=tools, middleware=middleware)
+<span class="ln">112</span>kq = agent.invoke(
+<span class="ln"></span>    {<span class="str">"messages"</span>: [{<span class="str">"role"</span>: <span class="str">"user"</span>, <span class="str">"content"</span>: CAU_HOI}]}, config
+<span class="ln"></span>)</code></pre>
+            </div>
+          </article>
+
+          <article class="step card">
+            <div class="step-num">5</div>
+            <div>
+              <h3>Xử lý hai kiểu kết thúc · dòng 111–131</h3>
+              <p>Nếu graph chạm trần cứng, khối <code>except</code> in <code>GraphRecursionError</code>. Nếu middleware kết thúc graph có kiểm soát, chương trình in toàn bộ phiên và lý do dừng.</p>
+              <div class="grid-2">
+                <div class="callout danger"><strong>Ngoại lệ</strong>Biết graph bị chặn, nhưng không biết vòng nào bắt đầu hỏng.</div>
+                <div class="callout success"><strong>Kết quả có cấu trúc</strong>Còn giữ lịch sử message và báo cáo bàn giao.</div>
+              </div>
+            </div>
+          </article>
+
+          <article class="step card">
+            <div class="step-num">6</div>
+            <div>
+              <h3><code>_in_phien()</code> biến message thành trace · dòng 134–148</h3>
+              <p>Hàm duyệt theo <code>m.type</code>: Human, AI có <code>tool_calls</code>, Tool, rồi AI trả lời. Biến <code>vong</code> chỉ tăng khi AI đề xuất tool, nên sinh viên nhìn được V1, V2, V3…</p>
+              <div class="callout info"><strong>Đây là phần trình bày, không phải cơ chế dừng.</strong>Sửa <code>_in_phien()</code> chỉ đổi log; không thay đổi hành vi agent.</div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="ba-che-do">
+      <div class="container">
+        <div class="section-head">
+          <div class="section-no">04</div>
+          <div>
+            <p class="eyebrow">Controlled experiment</p>
+            <h2>So sánh ba chế độ dừng</h2>
+            <p class="lead">Chọn từng chế độ để xem agent chạy đến đâu, biết được gì và để lại gì cho người xử lý tiếp.</p>
+          </div>
+        </div>
+
+        <div class="mode-picker" role="tablist" aria-label="Chọn chế độ dừng">
+          <button class="mode-button" role="tab" aria-selected="true" aria-controls="mode-unlimited" id="tab-unlimited" data-mode="unlimited">1 · Không giới hạn riêng</button>
+          <button class="mode-button" role="tab" aria-selected="false" aria-controls="mode-budget" id="tab-budget" data-mode="budget">2 · Ngân sách 8 lượt</button>
+          <button class="mode-button" role="tab" aria-selected="false" aria-controls="mode-loop" id="tab-loop" data-mode="loop">3 · Phát hiện lặp</button>
+        </div>
+
+        <article class="mode-panel active" id="mode-unlimited" role="tabpanel" aria-labelledby="tab-unlimited">
+          <div class="mode-result card">
+            <p class="kicker bad-text">Phanh khẩn cấp</p>
+            <h3><code>recursion_limit=36</code></h3>
+            <p>Agent không có điều kiện dừng nghiệp vụ. LangGraph cuối cùng ném <code>GraphRecursionError</code> để bảo vệ tiến trình.</p>
+            <div class="meter" aria-label="Mức lãng phí cao"><span style="width:100%;background:var(--red)"></span></div>
+            <small>Lãng phí: rất cao</small>
+            <dl class="metric"><dt>Dừng xác định?</dt><dd>Không theo nghiệp vụ</dd><dt>Chẩn đoán?</dt><dd>Rất ít</dd><dt>Bàn giao?</dt><dd>Không</dd></dl>
+          </div>
+          <pre><code><span class="cm"># Nhánh else · dòng 100–103</span>
+config = {<span class="str">"recursion_limit"</span>: <span class="num">36</span>}
+
+<span class="cm"># Kết cục</span>
+<span class="kw">except</span> Exception <span class="kw">as</span> e:
+    print(type(e).__name__)  <span class="cm"># GraphRecursionError</span>
+
+<span class="cm"># Ta chỉ biết: graph đã vượt trần.</span>
+<span class="cm"># Ta không biết: hành vi hỏng bắt đầu ở vòng nào.</span></code></pre>
+        </article>
+
+        <article class="mode-panel" id="mode-budget" role="tabpanel" aria-labelledby="tab-budget" hidden>
+          <div class="mode-result card">
+            <p class="kicker mid">Cầu chì chi phí</p>
+            <h3><code>ModelCallLimitMiddleware(run_limit=8)</code></h3>
+            <p>Agent dừng tại ngân sách cố định, không phụ thuộc model có “tự giác” dừng hay không.</p>
+            <div class="meter" aria-label="Mức lãng phí trung bình"><span style="width:56%;background:var(--amber)"></span></div>
+            <small>Lãng phí: được giới hạn</small>
+            <dl class="metric"><dt>Dừng xác định?</dt><dd>Có</dd><dt>Chẩn đoán?</dt><dd>Chỉ biết hết lượt</dd><dt>Bàn giao?</dt><dd>Không đủ</dd></dl>
+          </div>
+          <pre><code><span class="cm"># dòng 96–97</span>
+<span class="kw">if</span> che_do == <span class="str">"ngan-sach"</span>:
+    middleware = [
+        ModelCallLimitMiddleware(
+            run_limit=<span class="num">8</span>,
+            exit_behavior=<span class="str">"end"</span>
+        )
+    ]
+
+<span class="cm"># Tốt: hóa đơn có trần.</span>
+<span class="cm"># Thiếu: không giải thích được nguyên nhân.</span></code></pre>
+        </article>
+
+        <article class="mode-panel" id="mode-loop" role="tabpanel" aria-labelledby="tab-loop" hidden>
+          <div class="mode-result card">
+            <p class="kicker good">Dừng theo ngữ nghĩa</p>
+            <h3><code>PhatHienLapMiddleware()</code></h3>
+            <p>Agent dừng ngay khi cùng cặp <code>(tool, args)</code> xuất hiện lần thứ hai trong cửa sổ gần nhất.</p>
+            <div class="meter" aria-label="Mức lãng phí thấp"><span style="width:24%;background:var(--green)"></span></div>
+            <small>Lãng phí: thấp</small>
+            <dl class="metric"><dt>Dừng xác định?</dt><dd>Có, tại V4</dd><dt>Chẩn đoán?</dt><dd>Có lý do cụ thể</dd><dt>Bàn giao?</dt><dd>Đủ 4 trường</dd></dl>
+          </div>
+          <pre><code><span class="cm"># dòng 98–99</span>
+<span class="kw">elif</span> che_do == <span class="str">"phat-hien-lap"</span>:
+    middleware = [PhatHienLapMiddleware()]
+
+<span class="cm"># Khi V4 lặp lại V1:</span>
+{
+  <span class="str">"jump_to"</span>: <span class="str">"end"</span>,
+  <span class="str">"messages"</span>: [AIMessage(content=bao_cao)]
+}</code></pre>
+        </article>
+
+        <div class="card" style="margin-top:24px;overflow:auto">
+          <table class="compare">
+            <thead><tr><th>Cơ chế</th><th>Nó trả lời câu hỏi nào?</th><th>Điểm mạnh</th><th>Điểm mù</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Recursion limit</strong></td><td>Graph có chạy quá lâu không?</td><td>Chặn sự cố vô hạn</td><td>Không hiểu nghiệp vụ</td></tr>
+              <tr><td><strong>Call budget</strong></td><td>Đã tiêu hết bao nhiêu lượt?</td><td>Chi phí dự đoán được</td><td>Không biết vì sao bế tắc</td></tr>
+              <tr><td><strong>Loop detector</strong></td><td>Agent có lặp hành động không?</td><td>Dừng sớm, có chẩn đoán</td><td>Cần quy tắc đúng với nghiệp vụ</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="loop-detector">
+      <div class="container">
+        <div class="section-head">
+          <div class="section-no">05</div>
+          <div>
+            <p class="eyebrow">Core mechanism</p>
+            <h2>LoopDetector bắt vòng lặp tại V4</h2>
+            <p class="lead">Dấu vân tay của một hành động là <code>(tên tool, args đã sắp xếp)</code>. Chỉ khác cách viết địa danh thì là hành động khác; quay lại đúng <code>Vung Tau</code> thì trùng.</p>
+          </div>
+        </div>
+
+        <div class="timeline card" aria-label="Dòng thời gian bốn lần gọi weather_forecast">
+          <div class="turn">
+            <div class="dot">V1</div>
+            <div><strong>Thử lần đầu</strong><code>town='Vung Tau'</code><span class="muted">Lưu dấu vân tay</span></div>
+          </div>
+          <div class="turn">
+            <div class="dot">V2</div>
+            <div><strong>Đổi dấu</strong><code>town='Vũng Tàu'</code><span class="muted">Chưa trùng args</span></div>
+          </div>
+          <div class="turn">
+            <div class="dot">V3</div>
+            <div><strong>Thêm “City”</strong><code>town='Vung Tau City'</code><span class="muted">Chưa trùng args</span></div>
+          </div>
+          <div class="turn bad">
+            <div class="dot">V4</div>
+            <div><strong>Quay lại V1</strong><code>town='Vung Tau'</code><span class="bad-text">Trùng → DỪNG</span></div>
+          </div>
+        </div>
+
+        <div class="grid-2" style="margin-top:24px">
+          <div class="card pad">
+            <h3>Middleware chạy sau mỗi lần model quyết định</h3>
+            <pre><code><span class="cm"># dòng 57–64</span>
+@hook_config(can_jump_to=[<span class="str">"end"</span>])
+<span class="kw">def</span> <span class="fn">after_model</span>(self, state, runtime):
+    cuoi = state[<span class="str">"messages"</span>][-<span class="num">1</span>]
+    <span class="kw">if not</span> getattr(cuoi, <span class="str">"tool_calls"</span>, None):
+        <span class="kw">return</span> None
+
+    <span class="kw">for</span> c <span class="kw">in</span> cuoi.tool_calls:
+        canh_bao = self.det.check(
+            c[<span class="str">"name"</span>], c[<span class="str">"args"</span>], progress=<span class="num">0</span>
+        )</code></pre>
+          </div>
+          <div class="card pad">
+            <h3>Ý nghĩa từng chi tiết</h3>
+            <ul>
+              <li><code>after_model</code>: kiểm tra trước khi tool thật sự chạy thêm một lần.</li>
+              <li><code>can_jump_to=["end"]</code>: khai báo hook được phép kết thúc graph.</li>
+              <li>Không có <code>tool_calls</code>: model đã trả lời bình thường, middleware không can thiệp.</li>
+              <li><code>window=6</code>: chỉ nhớ sáu hành động gần nhất.</li>
+              <li><code>repeat_k=2</code>: lần xuất hiện thứ hai là đủ cảnh báo.</li>
+              <li><code>progress=0</code>: đại lượng tiến triển không đổi trong demo này.</li>
+            </ul>
+          </div>
+        </div>
+
+        <figure class="diagram-shell card" style="margin-top:24px">
+          <figcaption class="diagram-topbar">
+            <span class="diagram-title">Thuật toán trong after_model()</span>
+            <span class="diagram-key">Đường đỏ = kết thúc graph</span>
+          </figcaption>
+          <div class="diagram-scroll">
+            <svg class="diagram-svg decision-svg" viewBox="0 0 1100 390" role="img" aria-labelledby="decision-title decision-desc">
+              <title id="decision-title">Sơ đồ quyết định của LoopDetector</title>
+              <desc id="decision-desc">Middleware tạo dấu vân tay cho tool call, kiểm tra số lần lặp, rồi dừng graph hoặc cho phép gọi tool.</desc>
+              <defs>
+                <marker id="decision-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#66758a"/>
+                </marker>
+                <marker id="decision-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#b43c35"/>
+                </marker>
+                <marker id="decision-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#187254"/>
+                </marker>
+                <filter id="decision-shadow" x="-20%" y="-20%" width="140%" height="150%">
+                  <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#172033" flood-opacity=".10"/>
+                </filter>
+              </defs>
+
+              <path d="M280 195 H378" fill="none" stroke="#66758a" stroke-width="3" marker-end="url(#decision-arrow)"/>
+              <path d="M578 157 C672 157 704 117 793 117" fill="none" stroke="#b43c35" stroke-width="4" marker-end="url(#decision-red)"/>
+              <path d="M578 233 C672 233 704 278 793 278" fill="none" stroke="#187254" stroke-width="4" marker-end="url(#decision-green)"/>
+
+              <rect x="45" y="140" width="235" height="110" rx="22" fill="#e8f0ff" stroke="#8eb0e3" stroke-width="2" filter="url(#decision-shadow)"/>
+              <text x="75" y="177" class="svg-kicker" fill="#275dad">TOOL CALL MỚI</text>
+              <text x="75" y="209" class="svg-title" style="font-size:19px">Tạo dấu vân tay</text>
+              <text x="75" y="234" class="svg-code">name + sorted(args)</text>
+
+              <polygon points="500,86 620,195 500,304 380,195" fill="#fff0d5" stroke="#a65f00" stroke-width="3" filter="url(#decision-shadow)"/>
+              <text x="500" y="173" text-anchor="middle" class="svg-title" style="font-size:18px">Dấu vân tay</text>
+              <text x="500" y="197" text-anchor="middle" class="svg-title" style="font-size:18px">đã xuất hiện đủ</text>
+              <text x="500" y="224" text-anchor="middle" class="svg-code">repeat_k = 2?</text>
+
+              <rect x="795" y="62" width="260" height="110" rx="22" fill="#fdebea" stroke="#d98f8a" stroke-width="2" filter="url(#decision-shadow)"/>
+              <text x="825" y="98" class="svg-kicker" fill="#b43c35">CÓ · PHÁT HIỆN LẶP</text>
+              <text x="825" y="130" class="svg-code" style="font-size:19px;font-weight:800">jump_to = "end"</text>
+              <text x="825" y="153" class="svg-copy">Tạo báo cáo bàn giao</text>
+
+              <rect x="795" y="223" width="260" height="110" rx="22" fill="#e4f5ee" stroke="#79bca3" stroke-width="2" filter="url(#decision-shadow)"/>
+              <text x="825" y="259" class="svg-kicker" fill="#187254">KHÔNG · CHƯA LẶP</text>
+              <text x="825" y="291" class="svg-code" style="font-size:19px;font-weight:800">return None</text>
+              <text x="825" y="314" class="svg-copy">Cho graph tiếp tục gọi tool</text>
+
+              <rect x="667" y="127" width="58" height="24" rx="12" fill="#fff" stroke="#e1aaa6"/>
+              <text x="696" y="144" text-anchor="middle" class="svg-branch" fill="#b43c35">CÓ</text>
+              <rect x="660" y="246" width="72" height="24" rx="12" fill="#fff" stroke="#a8d0c0"/>
+              <text x="696" y="263" text-anchor="middle" class="svg-branch" fill="#187254">KHÔNG</text>
+            </svg>
+          </div>
+          <p class="diagram-mobile-hint">Vuốt ngang để xem trọn sơ đồ →</p>
+        </figure>
+
+        <div class="callout warn" style="margin-top:20px">
+          <strong>Vì sao so action thay vì observation?</strong>
+          Hai observation giống nhau chưa chắc là lỗi. Ví dụ gọi <code>get_booking(id)</code> lặp lại để chờ trạng thái chuyển từ <code>pending</code> sang <code>confirmed</code> là polling hợp lệ. Quy tắc dừng phải gắn với ý nghĩa nghiệp vụ, không chỉ chuỗi dữ liệu.
+        </div>
+      </div>
+    </section>
+
+    <section id="ban-giao">
+      <div class="container">
+        <div class="section-head">
+          <div class="section-no">06</div>
+          <div>
+            <p class="eyebrow">Safe failure</p>
+            <h2>Dừng không có nghĩa là im lặng</h2>
+            <p class="lead">Khi agent không hoàn tất được nhiệm vụ, đầu ra hữu ích nhất là một gói bàn giao để người dùng hoặc nhân viên biết chuyện gì xảy ra và quyết định bước kế tiếp.</p>
+          </div>
+        </div>
+
+        <div class="handoff" aria-label="Bốn thành phần của báo cáo bàn giao">
+          <div class="handoff-row"><strong>1 · stop_reason</strong><span>Vì sao hệ thống dừng: cùng tool và tham số đã lặp lần thứ hai.</span></div>
+          <div class="handoff-row"><strong>2 · da_thu</strong><span>Chuỗi hành động đã thử: Vung Tau → Vũng Tàu → Vung Tau City → Vung Tau.</span></div>
+          <div class="handoff-row"><strong>3 · trang_thai</strong><span>Ảnh chụp trạng thái: số lần gọi tool, số kết quả dùng được.</span></div>
+          <div class="handoff-row"><strong>4 · cau_hoi_cho_nguoi</strong><span>Quyết định còn thiếu: dùng nguồn thay thế hay thông báo chưa hỗ trợ?</span></div>
+        </div>
+
+        <div class="grid-2" style="margin-top:24px">
+          <pre><code><span class="cm"># dòng 67–77</span>
+bao_cao = ban_giao(
+    ly_do=canh_bao,
+    da_thu=self.da_thu,
+    trang_thai={
+        <span class="str">"so_lan_goi_tool"</span>: len(self.da_thu),
+        <span class="str">"ket_qua_dung"</span>: <span class="num">0</span>
+    },
+    cau_hoi=<span class="str">"Dùng nguồn nào thay thế, "</span>
+            <span class="str">"hay trả lời là chưa hỗ trợ?"</span>
+)
+<span class="kw">return</span> {
+    <span class="str">"jump_to"</span>: <span class="str">"end"</span>,
+    <span class="str">"messages"</span>: [AIMessage(content=_in_ban_giao(bao_cao))]
+}</code></pre>
+          <div class="card pad">
+            <p class="kicker">Output kỳ vọng</p>
+            <h3>DỪNG BẤT THƯỜNG</h3>
+            <p class="mono">LOOP · 'weather_forecast' gọi 2 lần với cùng tham số trong 6 vòng gần nhất</p>
+            <hr style="border:0;border-top:1px solid var(--line)">
+            <p><strong>Đã thử:</strong> đầy đủ bốn lời gọi.</p>
+            <p><strong>Trạng thái:</strong> 4 lần gọi, 0 kết quả dùng được.</p>
+            <p><strong>Hỏi người:</strong> chọn nguồn thay thế hay báo chưa hỗ trợ.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="tong-ket">
+      <div class="container">
+        <div class="section-head">
+          <div class="section-no">07</div>
+          <div>
+            <p class="eyebrow">Takeaways</p>
+            <h2>Ba lớp bảo vệ nên đi cùng nhau</h2>
+            <p class="lead">Không chọn một và bỏ hai. Mỗi lớp xử lý một loại rủi ro khác nhau.</p>
+          </div>
+        </div>
+
+        <div class="grid-3">
+          <div class="card pad"><p class="kicker bad-text">Lớp cuối</p><h3>Trần cứng framework</h3><p>Ngăn tiến trình chạy vô hạn khi mọi cơ chế khác thất bại.</p></div>
+          <div class="card pad"><p class="kicker mid">Lớp chi phí</p><h3>Ngân sách model/tool</h3><p>Đảm bảo chi phí và độ trễ không vượt giới hạn vận hành.</p></div>
+          <div class="card pad"><p class="kicker good">Lớp ngữ nghĩa</p><h3>Phát hiện lặp + bàn giao</h3><p>Dừng sớm, giải thích đúng sự cố và giữ đủ ngữ cảnh để tiếp quản.</p></div>
+        </div>
+
+        <div class="grid-2" style="margin-top:24px">
+          <article class="card pad">
+            <h3>Checklist khi viết agent thật</h3>
+            <ul class="checklist">
+              <li>Đặt ngân sách hữu hạn cho model và tool.</li>
+              <li>Xác định dấu hiệu “có tiến triển” của nghiệp vụ.</li>
+              <li>Phân biệt retry hợp lệ với hành động lặp vô ích.</li>
+              <li>Thiết kế lỗi tool có mã, gợi ý và dữ liệu hợp lệ.</li>
+              <li>Khi dừng bất thường, luôn trả báo cáo bàn giao.</li>
+            </ul>
+          </article>
+          <article class="card pad exercise">
+            <p class="kicker" style="color:var(--purple)">Câu hỏi thảo luận</p>
+            <h3>Nếu observation được sửa tốt hơn thì sao?</h3>
+            <p>Thử tắt <code>SE373_LOI_TE=1</code>. Tool sẽ gợi ý gọi <code>search_travel_info</code> và đưa ví dụ tên hợp lệ. Khi đó, sửa model để đổi chiến lược thay vì đổi cách viết tên.</p>
+            <p><strong>Mục tiêu:</strong> chữa nguyên nhân gốc bằng giao thức tool tốt; vẫn giữ điều kiện dừng như lớp bảo vệ.</p>
+          </article>
+        </div>
+
+        <div class="callout info" style="margin-top:24px">
+          <strong>Một câu để nhớ</strong>
+          “Agent an toàn không chỉ biết làm tiếp; nó còn biết khi nào phải dừng, vì sao dừng và bàn giao điều gì.”
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container">Tài liệu học kèm <code>demo2_dieu_kien_dung.py</code> · Nội dung bám theo các dòng code và hành vi của model/tool giả lập.</div>
+  </footer>
+
+  <script>
+    const tabs = [...document.querySelectorAll('[role="tab"]')];
+    const panels = [...document.querySelectorAll('[role="tabpanel"]')];
+
+    function selectMode(tab) {
+      tabs.forEach((item) => {
+        const selected = item === tab;
+        item.setAttribute('aria-selected', String(selected));
+        item.tabIndex = selected ? 0 : -1;
+      });
+      panels.forEach((panel) => {
+        const visible = panel.id === tab.getAttribute('aria-controls');
+        panel.classList.toggle('active', visible);
+        panel.hidden = !visible;
+      });
+    }
+
+    tabs.forEach((tab, index) => {
+      tab.addEventListener('click', () => selectMode(tab));
+      tab.addEventListener('keydown', (event) => {
+        if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+        event.preventDefault();
+        let next = index;
+        if (event.key === 'ArrowRight') next = (index + 1) % tabs.length;
+        if (event.key === 'ArrowLeft') next = (index - 1 + tabs.length) % tabs.length;
+        if (event.key === 'Home') next = 0;
+        if (event.key === 'End') next = tabs.length - 1;
+        tabs[next].focus();
+        selectMode(tabs[next]);
+      });
+    });
+  </script>
+</body>
+</html>
