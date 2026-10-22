@@ -1,0 +1,45 @@
+[
+  {
+    "id": 1,
+    "key": "revenue_definition",
+    "value": "Doanh thu = SUM(orders.total_amount) của các đơn có status = 'delivered'.",
+    "status": "superseded",
+    "created_at": "2026-10-21T03:05:22+00:00",
+    "source_session": "s-20261021-100516-139821",
+    "reason": "Người dùng chốt quy ước tính doanh thu cho dự án Chợ Sen.",
+    "supersedes": null,
+    "superseded_by": 4,
+    "superseded_at": "2026-10-21T03:06:03+00:00",
+    "superseded_reason": "Người dùng yêu cầu đổi quy ước doanh thu từ SUM(total_amount) sang doanh thu thuần SUM(total_amount - discount_amount) cho đơn delivered."
+  },
+  {
+    "id": 2,
+    "key": "revenue_column_alias",
+    "value": "Cột doanh thu trong kết quả truy vấn đặt alias là revenue_vnd.",
+    "status": "active",
+    "created_at": "2026-10-21T03:05:28+00:00",
+    "source_session": "s-20261021-100516-139821",
+    "reason": "Người dùng chốt quy ước đặt tên cột doanh thu cho dự án Chợ Sen.",
+    "supersedes": null
+  },
+  {
+    "id": 3,
+    "key": "month_format",
+    "value": "Tháng hiển thị trong kết quả dạng YYYY-MM.",
+    "status": "active",
+    "created_at": "2026-10-21T03:05:32+00:00",
+    "source_session": "s-20261021-100516-139821",
+    "reason": "Người dùng chốt quy ước định dạng tháng cho dự án Chợ Sen.",
+    "supersedes": null
+  },
+  {
+    "id": 4,
+    "key": "revenue_definition",
+    "value": "Doanh thu = doanh thu thuần = SUM(orders.total_amount - orders.discount_amount) của các đơn có status = 'delivered'.",
+    "status": "active",
+    "created_at": "2026-10-21T03:06:03+00:00",
+    "source_session": "s-20261021-100558-332805",
+    "reason": "Người dùng yêu cầu đổi quy ước doanh thu từ SUM(total_amount) sang doanh thu thuần SUM(total_amount - discount_amount) cho đơn delivered.",
+    "supersedes": 1
+  }
+]
