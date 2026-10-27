@@ -1,0 +1,85 @@
+{
+  "goal": "Điều tra sự cố khách phàn nàn thanh toán thất bại tối 14/3/2025. Bước 1 (nginx: 504 trên POST /api/payment/charge, 20:02-20:58) đã xong. Người dùng đưa giả thuyết 1: lỗi do inventory-service đồng bộ kho chậm. Người dùng đưa giả thuyết 2: do cổng thanh toán momo. Mục tiêu: xác nhận hoặc loại trừ từng giả thuyết và tìm nguyên nhân upstream trong payment-service và order-service 19:55-21:05.",
+  "constraints": [
+    "KHÔNG được đề xuất restart service.",
+    "Mọi mốc thời gian trong câu trả lời phải ghi dạng HH:MM (giờ +0700).",
+    "Ràng buộc này áp dụng cho toàn bộ cuộc điều tra (người dùng nói rõ ở tin nhắn đầu)."
+  ],
+  "current_state": "Bước 1 xong. Giả thuyết inventory-service: chưa xác nhận, vì lệch thời gian với 504 (xem findings). Câu trả lời trước bị cắt giữa chừng, cần trình bày lại đầy đủ. Giả thuyết momo: đã grep payment-service ngày 14/3 theo gateway. Phát hiện chính: trong cửa sổ 20:02-20:14 các lỗi PAY_GATEWAY_TIMEOUT đều thuộc gateway=vnpay, chưa thấy momo. Momo chỉ có CARD_DECLINED (WARN) và INVALID_SIGNATURE ở thời điểm khác. Phần còn lại của kết quả (58 dòng) đã bị cắt, chưa kiểm tra xong 20:14-21:05. Chưa kiểm tra order-service.",
+  "findings": [
+    {
+      "fact": "Ngày 14/3/2025 có 34 request POST /api/payment/charge trả 504 (5xx), từ 20:02 đến 20:58. Đầu là req=r-7ce61f15 lúc 20:02, cuối đã thấy là req=r-5a8b3c63 lúc 20:58.",
+      "evidence": "grep_log trên nginx-2025-03-14.log (bước 1)."
+    },
+    {
+      "fact": "Không có 5xx trên endpoint thanh toán trước 20:00 trong ngày 14/3.",
+      "evidence": "Suy ra từ kết quả grep nginx 34 dòng, dòng đầu là 20:02."
+    },
+    {
+      "fact": "504 đến từ nhiều IP client (203.0.113.15, .17, .39, .5). Kích thước body 399-4000 byte. Một số 504 có thời gian xử lý rất thấp (0.026s, 0.030s; req=r-7c02c480, req=r-04846ab2).",
+      "evidence": "Các dòng 504 trong grep nginx."
+    },
+    {
+      "fact": "inventory-service ngày 14/3 có nhiều dòng ERROR STOCK_SYNC_LAG trước 20:00 (ít nhất 11 lần: 00:49, 02:58, 07:38, 09:55, 11:32, 12:38, 13:18, 14:58, 15:16, 15:19, 17:17), độ trễ 123s-374s. Không có 5xx thanh toán kèm các lần này.",
+      "evidence": "grep_log pattern (?i)(warn|error|timeout|...|sync|lag|...) trên inventory-service-2025-03-14.log (104 dòng, hiển thị 100)."
+    },
+    {
+      "fact": "Không có STOCK_SYNC_LAG trong 20:00-20:24. Đợt dày nhất từ 20:25 đến khoảng 20:34 (độ trễ 30s-396s, nhiều dòng; con số ~70 là ước lượng của assistant, chưa đếm chính xác). Không có lag trong 20:35-21:58. Có 1 dòng lúc 21:59 (189s).",
+      "evidence": "grep_log pattern '2025-03-14 2[01]:[0-9:.]+ .*STOCK_SYNC_LAG' trên inventory-service-2025-03-14.log (71 dòng khớp, output bị cắt 31 dòng)."
+    },
+    {
+      "fact": "Lệch thời gian với 504: 504 kéo dài 20:02-20:58, lag chỉ 20:25-20:34. Có khoảng 23 phút 504 trước khi lag bắt đầu (20:02-20:24) và khoảng 24 phút 504 sau khi lag kết thúc (20:35-20:58). Lag cũng xuất hiện nhiều lần trong ngày mà không có 504 (ví dụ 12:38, 15:16). Lag đơn thuần không giải thích đủ 504.",
+      "evidence": "So sánh grep nginx và grep inventory-service trên cùng ngày 14/3."
+    },
+    {
+      "fact": "payment-service ngày 14/3: các lỗi PAY_GATEWAY_TIMEOUT trong 20:02-20:14 đều có gateway=vnpay, msg 'gateway did not respond within 300ms', mỗi req thử 2 lần (attempt 1/2, 2/2) cách nhau khoảng 0.3s. Ví dụ req=r-7ce61f15 (order_id=239) lúc 20:02; req=r-7c02c480 (order_id=272) lúc 20:05; req=r-1158d80e (order_id=575) lúc 20:05; req=r-ed862856 (order_id=615) lúc 20:06; req=r-83d5bf8f (order_id=1684) lúc 20:09; req=r-bbb9d2fe (order_id=2059) và req=r-53c505da (order_id=764) lúc 20:10; req=r-32b269ce (order_id=76) lúc 20:11; req=r-82168e1b (order_id=1714) lúc 20:13; req=r-c3390768 (order_id=1736) lúc 20:14.",
+      "evidence": "grep_log pattern '(ERROR|WARN).*gateway=(momo|vnpay)' trên payment-service-2025-03-14.log (98 dòng, output bị cắt 58 dòng cuối)."
+    },
+    {
+      "fact": "Gateway momo trong payment-service ngày 14/3: không thấy PAY_GATEWAY_TIMEOUT trong phần kết quả đã hiển thị (06:00-20:14). Các dòng momo thấy được: INVALID_SIGNATURE 'callback signature mismatch' lúc 06:19 và 18:11 (ERROR); CARD_DECLINED (WARN) lúc 12:31 (req=r-5a8cac06), 19:19 (req=r-0ed17c4e), 20:04 (req=r-6c2b235a, order_id=1793).",
+      "evidence": "Cùng grep (ERROR|WARN).*gateway=(momo|vnpay) trên payment-service-2025-03-14.log, và grep (?i)(momo|gateway) trên cùng file (689 dòng, phần lớn là 'charge ok', không phân biệt được lỗi)."
+    },
+    {
+      "fact": "Các response từ chối thanh toán trong ngày do payment-service ghi nhận là WARN CARD_DECLINED 'issuer declined' (gateway vnpay hoặc momo), không phải 402 ở phía payment-service. Các mốc: 14:45 (req=r-b71c7b4d), 16:21 (req=r-73f42b76), 18:15 (req=r-d6f5dccc), 19:48 (req=r-c1c0d7b1). Đây là xác minh cho các mốc chưa rõ trước đó.",
+      "evidence": "Cùng grep (ERROR|WARN).*gateway=(momo|vnpay) trên payment-service-2025-03-14.log."
+    }
+  ],
+  "failed_attempts": [
+    {
+      "attempt": "grep_log nginx với regex rộng (payment hoặc /pay kèm bất kỳ số 5xx trên dòng).",
+      "why_failed": "Khớp nhầm cột thời gian xử lý hoặc kích thước 500 byte. 106 dòng nhiều dương tính giả, chỉ hiển thị 100."
+    },
+    {
+      "attempt": "grep_log inventory-service với pattern rộng (warn|error|timeout|...|sync|lag).",
+      "why_failed": "104 dòng, chỉ hiển thị 100, nhiễu bởi LOW_STOCK không liên quan. Phải lọc riêng STOCK_SYNC_LAG."
+    },
+    {
+      "attempt": "Kết luận giả thuyết inventory-service là nguyên nhân (người dùng đề xuất).",
+      "why_failed": "Lệch thời gian: 504 từ 20:02 nhưng lag từ 20:25; lag dừng 20:34 nhưng 504 đến 20:58. Lag xuất hiện nhiều lần trong ngày không kèm 504."
+    },
+    {
+      "attempt": "grep_log payment-service với (?i)(momo|gateway).",
+      "why_failed": "689 dòng, phần lớn là 'charge ok' của cả hai gateway, không lọc được lỗi. Phải dùng pattern ERROR|WARN kèm gateway."
+    },
+    {
+      "attempt": "Kết luận giả thuyết momo là nguyên nhân (người dùng đề xuất).",
+      "why_failed": "Chưa đủ bằng chứng để kết luận. Trong cửa sổ 504 đã thấy (20:02-20:14), mọi PAY_GATEWAY_TIMEOUT đều là vnpay. Momo chỉ có CARD_DECLINED và INVALID_SIGNATURE vào giờ khác. Chưa kiểm tra 20:14-20:58 (58 dòng bị cắt)."
+    }
+  ],
+  "open_questions": [
+    "Phần 58 dòng bị cắt (sau 20:14) có PAY_GATEWAY_TIMEOUT với gateway=momo không? Cần grep lại với gateway=momo và PAY_GATEWAY_TIMEOUT trong 20:00-21:00 để xác nhận hoặc loại trừ momo.",
+    "Có phải 504 từ 20:02 là do gateway vnpay không phản hồi trong 300ms? Cần đối chiếu số req có PAY_GATEWAY_TIMEOUT vnpay với 34 req 504 trong nginx (đếm 1-1 theo req id).",
+    "Mâu thuẫn: req=r-7c02c480 có 504 ở nginx với thời gian xử lý 0.026s, nhưng payment-service ghi 2 lần timeout 300ms (khoảng 0.6s). Cần kiểm tra lại dòng nginx và xem có cùng req id không.",
+    "Nguyên nhân PAY_GATEWAY_TIMEOUT vnpay lúc 20:02-20:14 là gì? Vnpay có lỗi phía họ không, hay có sự cố kết nối/độ trễ mạng? Cần log order-service và các dòng payment 19:55-21:05 để tìm upstream.",
+    "Vì sao 504 từ 20:25-20:34 trùng với đợt lag inventory? Cần xác định payment/order có gọi inventory trong luồng charge không.",
+    "Momo INVALID_SIGNATURE lúc 06:19 và 18:11 có liên quan đến sự cố tối không? Hiện chưa rõ, nhưng nằm ngoài cửa sổ 504.",
+    "Câu trả lời trước bị cắt giữa chừng, cần trình bày lại đầy đủ cho người dùng."
+  ],
+  "files_examined": [
+    "nginx-2025-03-14.log (grep /api/payment/ với 5xx; grep regex rộng)",
+    "inventory-service-2025-03-14.log (grep warn|error|timeout|...|sync|lag; grep '2025-03-14 2[01]:... STOCK_SYNC_LAG')",
+    "payment-service-2025-03-14.log (grep (?i)(momo|gateway); grep '(ERROR|WARN).*gateway=(momo|vnpay)')",
+    "Danh sách file log (list_logs): inventory-service, nginx, order-service, payment-service, 12/3-16/3/2025"
+  ],
+  "next_action": "Chạy grep trên payment-service-2025-03-14.log với pattern 'PAY_GATEWAY_TIMEOUT.*gateway=momo' và 'gateway=momo.*(ERROR|TIMEOUT)' trong 20:00-21:05 để loại trừ hoặc xác nhận momo. Sau đó grep đếm PAY_GATEWAY_TIMEOUT theo gateway trong 20:14-21:05. Trình bày lại kết luận đầy đủ cho người dùng (giả thuyết inventory chưa xác nhận, giả thuyết momo đang nghiêng về loại trừ vì 504 liên quan vnpay). Không đề xuất restart."
+}
